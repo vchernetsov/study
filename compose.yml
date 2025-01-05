@@ -1,0 +1,22 @@
+services:
+  tensorflow-gpu:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      - TF_FORCE_GPU_ALLOW_GROWTH=true
+      - JUPYTER_TOKEN=677994e03eec800990a8
+      - JUPYTER_WEBSOCKET_TIMEOUT=36000
+    deploy:
+      resources:
+        reservations:
+          cpus: "10.0"  # limit cores number
+          memory: "32g"  # limit RAM consumption
+          devices:
+            - capabilities: [gpu]
+    ports:
+      - "8888:8888"  # Share notebook to local network
+    shm_size: "4g"  # Allow extend shared memory
