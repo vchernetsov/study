@@ -151,15 +151,15 @@ class BaseStrategy:
 
     def repr(self):
         metrics = self.metrics
-        print(f'Accuracy: {metrics['accuracy']}')
-        print(f'Precision: {metrics['precision']}')
-        print(f'Recall: {metrics['recall']}')
-        print(f'F1 Score: {metrics['f1']}')
-        print(f'ROC AUC: {metrics['roc_auc']}')
-        print(f'Mean Absolute Error (MAE): {metrics['mae']}')
-        print(f'Confusion Matrix:\n{metrics['conf_matrix']}')
+        print(f"Accuracy: {metrics['accuracy']}")
+        print(f"Precision: {metrics['precision']}")
+        print(f"Recall: {metrics['recall']}")
+        print(f"F1 Score: {metrics['f1']}")
+        print(f"ROC AUC: {metrics['roc_auc']}")
+        print(f"Mean Absolute Error (MAE): {metrics['mae']}")
+        print(f"Confusion Matrix:\n{metrics['conf_matrix']}")
         if self.optimal_params:
-            print(f'Best model params: {self.optimal_params}')
+            print(f"Best model params: {self.optimal_params}")
 
 
 class StrategyIO:

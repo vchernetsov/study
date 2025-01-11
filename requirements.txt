@@ -2,6 +2,7 @@ tensorflow
 pandas
 numpy
 seaborn
+scikit-learn
 
 pydot
 graphviz
