@@ -1,7 +1,7 @@
 import click
-from .abstracts import ModelContext
+from abstracts import ModelContext
 from constants import MODEL_CLASSES
-from .pipeline_data import DataPipeline
+from pipeline_data import DataPipeline
 
 
 @click.command()

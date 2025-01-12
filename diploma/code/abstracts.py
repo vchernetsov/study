@@ -49,6 +49,23 @@ class Pipeline:
         # split string with newline char
         data = content.split("\n")
         data = [x.strip() for x in data]
+        for idx, line in enumerate(data):
+            try:
+                decoded_string = line.encode("latin1").decode("windows-1251")
+                line = decoded_string
+                data[idx] = line
+                continue
+            except:
+                pass
+
+            try:
+                decoded_string = line.encode("windows-1251").decode("windows-1251")
+                line = decoded_string
+                data[idx] = line
+                continue
+            except:
+                pass
+            
         return list(filter(bool, data))
 
     def read_rtf(self, path):
@@ -75,6 +92,7 @@ class Pipeline:
 
     def restore_data(self, prefix):
         attr_name = f'{prefix}_data'
+        setattr(self, attr_name, [])
         attr = getattr(self, attr_name)
         with open(self.data_file_name(prefix), newline='') as fh:
             reader = csv.DictReader(fh)
@@ -146,6 +164,8 @@ class BaseStrategy:
                 'train_accuracy': train_accuracy,
                 'val_accuracy': val_accuracy,
                 'overfit': (train_accuracy - val_accuracy) > 0.1,
+                'estimated': self.estimated,
+                'estimated_probability': self.estimated_probability,
             }
         return self._metrics
 
