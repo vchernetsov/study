@@ -1,4 +1,7 @@
 click
+colored
+tabulate
+plotly
 umap-learn
 tensorflow
 pandas
@@ -6,5 +9,5 @@ numpy
 seaborn
 scikit-learn
 
-pydot
-graphviz
+# pydot
+# graphviz
