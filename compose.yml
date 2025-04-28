@@ -9,7 +9,9 @@ services:
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
       - TF_FORCE_GPU_ALLOW_GROWTH=true
       - JUPYTER_TOKEN=677994e03eec800990a8
-      - JUPYTER_WEBSOCKET_TIMEOUT=36000
+      - JUPYTER_WEBSOCKET_TIMEOUT=360000
+      - WEBSOCKET_PING_TIMEOUT=360000
+      - NotebookApp.websocket_ping_timeout=360000
     deploy:
       resources:
         reservations:
