@@ -21,7 +21,7 @@ services:
             - capabilities: [gpu]
     volumes:
       - ./atienza_advanced_deep_learning:/tf/atienza_advanced_deep_learning:w
-      - ./diploma:/tf/diploma:w
+#      - ./diploma:/tf/diploma:w
       - ./tf/:/tf/:r
     ports:
       - "8888:8888"  # Share notebook to local network

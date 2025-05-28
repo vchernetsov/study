@@ -11,3 +11,7 @@ scikit-learn
 
 # pydot
 # graphviz
+
+torch
+torchvision
+matplotlib
