@@ -1,0 +1,7 @@
+cffi==2.0.0
+numpy==2.3.5
+pycparser==2.23
+pyserial==3.5
+six==1.17.0
+sounddevice==0.5.3
+transitions==0.9.3
