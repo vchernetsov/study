@@ -146,6 +146,7 @@ class StandConsole(cmd.Cmd):
 
     def _get_ir_command(self):
         cmd_str = self.config.get('commands', 'ir_engage', fallback='!r\\n')
+        print (f"'{cmd_str}'")
         return cmd_str.encode().decode('unicode_escape').encode()
 
     def _get_test_command(self):
@@ -160,8 +161,6 @@ class StandConsole(cmd.Cmd):
         """Internal method to start the loop thread."""
         # Stop any existing loop first
         self._stop_loop(save=True)
-        # Small delay to let audio system settle
-        time.sleep(0.1)
         # Reset and start fresh
         self.loop_stop_event.clear()
         self.loop_save_on_stop = True
@@ -173,11 +172,9 @@ class StandConsole(cmd.Cmd):
         if self.loop_thread and self.loop_thread.is_alive():
             self.loop_save_on_stop = save
             self.loop_stop_event.set()
-            try:
-                sd.stop()
-            except Exception:
-                pass
-            self.loop_thread.join(timeout=2)
+            # Don't call sd.stop() - let the current playback finish naturally
+            # The thread checks loop_stop_event after each sd.wait()
+            self.loop_thread.join(timeout=5)
         self.loop_thread = None
 
     def do_start(self, arg):
@@ -314,9 +311,19 @@ class StandConsole(cmd.Cmd):
                 t = np.linspace(0, duration, int(sample_rate * duration), False)
                 wave = 0.5 * np.sin(2 * np.pi * frequency * t)
                 self.loop_history.append(f"{frequency:.1f} Hz")
-                # Print frequency
-                sys.stdout.write(f"  ♪ {frequency:.1f} Hz\n")
-                sys.stdout.flush()
+                # Print frequency - save current input, print on new line, restore prompt
+                with self.output_lock:
+                    # Move to new line, print status, then reprint prompt
+                    sys.stdout.write(f"\r  ♪ {frequency:.1f} Hz\n{self.prompt}")
+                    sys.stdout.flush()
+                    # Redisplay any partial input the user has typed
+                    try:
+                        line = readline.get_line_buffer()
+                        if line:
+                            sys.stdout.write(line)
+                            sys.stdout.flush()
+                    except Exception:
+                        pass
                 sd.play(wave, sample_rate)
                 sd.wait()
                 time.sleep(0.15)  # Small delay for audio cleanup
