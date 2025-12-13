@@ -348,6 +348,20 @@ class StandConsole(cmd.Cmd):
                 if self.loop_save_on_stop:
                     self._save_config()
 
+                # 10 second delay between iterations
+                with self.output_lock:
+                    sys.stdout.write(f"\r  zzz sleeping 10s...\n{self.prompt}")
+                    sys.stdout.flush()
+                    try:
+                        line = readline.get_line_buffer()
+                        if line:
+                            sys.stdout.write(line)
+                            sys.stdout.flush()
+                    except Exception:
+                        pass
+                time.sleep(10)
+
+
             except Exception as e:
                 print(f"  Loop error: {e}")
                 break
@@ -408,6 +422,50 @@ class StandConsole(cmd.Cmd):
         print(f"  Current: {frequency:.1f} Hz | Max: {max_freq} Hz | Step: {step} Hz")
         if self.loop_history:
             print(f"  History: {' -> '.join(self.loop_history)}")
+
+    def do_sweep(self, arg):
+        """Sweep from 1 Hz to max frequency in 1 minute with smooth chirp."""
+        sample_rate = self.config.getint('sound', 'sample_rate', fallback=44100)
+        min_freq = 1.0
+        max_freq = self.config.getfloat('loop', 'max_frequency', fallback=400.0)
+        total_duration = 60.0  # 1 minute
+
+        print(f"  Sweeping {min_freq} Hz -> {max_freq} Hz in 60 seconds")
+        print(f"  Press Ctrl+C to stop")
+
+        # Streaming state
+        phase = [0.0]  # Use list to allow modification in callback
+        sample_idx = [0]
+        total_samples = int(sample_rate * total_duration)
+
+        def callback(outdata, frames, time_info, status):
+            t = np.arange(frames) / sample_rate
+            # Current time in the sweep
+            current_time = sample_idx[0] / sample_rate
+            # Instantaneous frequency at current time (linear sweep)
+            freq = min_freq + (max_freq - min_freq) * current_time / total_duration
+            # Generate samples with continuous phase
+            for i in range(frames):
+                inst_freq = min_freq + (max_freq - min_freq) * (sample_idx[0] + i) / total_samples
+                phase[0] += 2 * np.pi * inst_freq / sample_rate
+                outdata[i] = 0.5 * np.sin(phase[0])
+            sample_idx[0] += frames
+            # Stop when done
+            if sample_idx[0] >= total_samples:
+                raise sd.CallbackStop()
+
+        try:
+            with sd.OutputStream(samplerate=sample_rate, channels=1, callback=callback, blocksize=2048):
+                while sample_idx[0] < total_samples:
+                    current_freq = min_freq + (max_freq - min_freq) * sample_idx[0] / total_samples
+                    sys.stdout.write(f"\r  {current_freq:.1f} Hz  ")
+                    sys.stdout.flush()
+                    time.sleep(0.5)
+            print(f"\n  Sweep complete")
+        except KeyboardInterrupt:
+            print("\n  Sweep interrupted")
+        except Exception as e:
+            print(f"\n  Sweep error: {e}")
 
     def do_config(self, arg):
         """Show current configuration."""

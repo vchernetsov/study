@@ -1,5 +1,5 @@
 cffi==2.0.0
-numpy==2.3.5
+numpy
 pycparser==2.23
 pyserial==3.5
 six==1.17.0
