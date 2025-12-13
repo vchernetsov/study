@@ -71,7 +71,9 @@ class StandConsole(cmd.Cmd):
         self.config = configparser.ConfigParser()
         self.config_loaded = False
         self.loop_thread = None
+        self.ir_thread = None
         self.loop_stop_event = threading.Event()
+        self.ir_trigger_event = threading.Event()
         self.loop_save_on_stop = True
         self.loop_history = deque(maxlen=10)
         self.output_lock = threading.Lock()
@@ -158,24 +160,31 @@ class StandConsole(cmd.Cmd):
         print(f"Current state: {self.state_machine.state}")
 
     def _start_loop(self):
-        """Internal method to start the loop thread."""
+        """Internal method to start the loop and IR threads."""
         # Stop any existing loop first
         self._stop_loop(save=True)
         # Reset and start fresh
         self.loop_stop_event.clear()
+        self.ir_trigger_event.clear()
         self.loop_save_on_stop = True
         self.loop_thread = threading.Thread(target=self._loop_worker, daemon=True)
+        self.ir_thread = threading.Thread(target=self._ir_worker, daemon=True)
         self.loop_thread.start()
+        self.ir_thread.start()
 
     def _stop_loop(self, save=True):
-        """Internal method to stop the loop thread."""
+        """Internal method to stop the loop and IR threads."""
         if self.loop_thread and self.loop_thread.is_alive():
             self.loop_save_on_stop = save
             self.loop_stop_event.set()
+            self.ir_trigger_event.set()  # Wake up IR thread so it can exit
             # Don't call sd.stop() - let the current playback finish naturally
             # The thread checks loop_stop_event after each sd.wait()
             self.loop_thread.join(timeout=5)
+        if self.ir_thread and self.ir_thread.is_alive():
+            self.ir_thread.join(timeout=2)
         self.loop_thread = None
+        self.ir_thread = None
 
     def do_start(self, arg):
         """Start execution and begin frequency loop (ready -> running)."""
@@ -324,6 +333,8 @@ class StandConsole(cmd.Cmd):
                             sys.stdout.flush()
                     except Exception:
                         pass
+                # Signal IR thread that iteration started
+                self.ir_trigger_event.set()
                 sd.play(wave, sample_rate)
                 sd.wait()
                 time.sleep(0.15)  # Small delay for audio cleanup
@@ -340,6 +351,45 @@ class StandConsole(cmd.Cmd):
             except Exception as e:
                 print(f"  Loop error: {e}")
                 break
+
+    def _ir_worker(self):
+        """Background thread worker for IR commands, synchronized with sound loop."""
+        while not self.loop_stop_event.is_set():
+            # Wait for signal from sound loop
+            self.ir_trigger_event.wait()
+            if self.loop_stop_event.is_set():
+                break
+            self.ir_trigger_event.clear()
+
+            # Wait 1 second after iteration starts
+            time.sleep(1.0)
+            if self.loop_stop_event.is_set():
+                break
+
+            # Send IR command
+            if self.serial_port and self.serial_port.is_open:
+                try:
+                    cmd = self._get_ir_command()
+                    self.serial_port.write(cmd)
+                    frequency = self.config.getfloat('loop', 'current_frequency', fallback=0)
+                    with self.output_lock:
+                        sys.stdout.write(f"\r  -> IR sent @ {frequency:.1f} Hz\n{self.prompt}")
+                        sys.stdout.flush()
+                        try:
+                            line = readline.get_line_buffer()
+                            if line:
+                                sys.stdout.write(line)
+                                sys.stdout.flush()
+                        except Exception:
+                            pass
+                except serial.SerialException as e:
+                    with self.output_lock:
+                        sys.stdout.write(f"\r  !! IR error: {e}\n{self.prompt}")
+                        sys.stdout.flush()
+            else:
+                with self.output_lock:
+                    sys.stdout.write(f"\r  !! IR skipped (not connected)\n{self.prompt}")
+                    sys.stdout.flush()
 
     def do_loopreset(self, arg):
         """Reset loop frequency to minimum (1 Hz)."""
