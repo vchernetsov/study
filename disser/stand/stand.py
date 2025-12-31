@@ -148,7 +148,6 @@ class StandConsole(cmd.Cmd):
 
     def _get_ir_command(self):
         cmd_str = self.config.get('commands', 'ir_engage', fallback='!r\\n')
-        print (f"'{cmd_str}'")
         return cmd_str.encode().decode('unicode_escape').encode()
 
     def _get_test_command(self):
@@ -303,7 +302,7 @@ class StandConsole(cmd.Cmd):
             print(f"  Error: {e}")
 
     def _loop_worker(self):
-        """Background thread worker for sound loop."""
+        """Background thread worker for sound loop using streaming audio."""
         sample_rate = self.config.getint('sound', 'sample_rate', fallback=44100)
         max_freq = self.config.getfloat('loop', 'max_frequency', fallback=400.0)
         step = self.config.getfloat('loop', 'step', fallback=0.1)
@@ -317,15 +316,11 @@ class StandConsole(cmd.Cmd):
                 break
 
             try:
-                t = np.linspace(0, duration, int(sample_rate * duration), False)
-                wave = 0.5 * np.sin(2 * np.pi * frequency * t)
                 self.loop_history.append(f"{frequency:.1f} Hz")
                 # Print frequency - save current input, print on new line, restore prompt
                 with self.output_lock:
-                    # Move to new line, print status, then reprint prompt
                     sys.stdout.write(f"\r  ♪ {frequency:.1f} Hz\n{self.prompt}")
                     sys.stdout.flush()
-                    # Redisplay any partial input the user has typed
                     try:
                         line = readline.get_line_buffer()
                         if line:
@@ -333,11 +328,30 @@ class StandConsole(cmd.Cmd):
                             sys.stdout.flush()
                     except Exception:
                         pass
+
                 # Signal IR thread that iteration started
                 self.ir_trigger_event.set()
-                sd.play(wave, sample_rate)
-                sd.wait()
-                time.sleep(0.15)  # Small delay for audio cleanup
+
+                # Streaming audio playback to avoid buffer underruns
+                phase = [0.0]
+                total_samples = int(sample_rate * duration)
+                samples_played = [0]
+
+                def audio_callback(outdata, frames, time_info, status):
+                    if self.loop_stop_event.is_set():
+                        raise sd.CallbackStop()
+                    for i in range(frames):
+                        if samples_played[0] >= total_samples:
+                            outdata[i:] = 0
+                            raise sd.CallbackStop()
+                        phase[0] += 2 * np.pi * frequency / sample_rate
+                        outdata[i] = 0.5 * np.sin(phase[0])
+                        samples_played[0] += 1
+
+                with sd.OutputStream(samplerate=sample_rate, channels=1,
+                                     callback=audio_callback, blocksize=2048):
+                    while samples_played[0] < total_samples and not self.loop_stop_event.is_set():
+                        time.sleep(0.1)
 
                 if self.loop_stop_event.is_set():
                     break
@@ -359,8 +373,12 @@ class StandConsole(cmd.Cmd):
                             sys.stdout.flush()
                     except Exception:
                         pass
-                time.sleep(10)
 
+                # Interruptible sleep
+                for _ in range(100):
+                    if self.loop_stop_event.is_set():
+                        break
+                    time.sleep(0.1)
 
             except Exception as e:
                 print(f"  Loop error: {e}")
