@@ -130,7 +130,9 @@ class StandConsole(cmd.Cmd):
             'min_frequency': '1.0',
             'max_frequency': '400.0',
             'step': '0.1',
-            'duration': '1.0'
+            'duration': '1.0',
+            'ir_delay': '10.0',
+            'log_file': 'stand.log'
         }
         self._save_config()
         print(f"  Created default config: {self.config_file}")
@@ -393,8 +395,9 @@ class StandConsole(cmd.Cmd):
                 break
             self.ir_trigger_event.clear()
 
-            # Wait 1 second after iteration starts
-            time.sleep(1.0)
+            # Wait before sending IR
+            ir_delay = self.config.getfloat('loop', 'ir_delay', fallback=10.0)
+            time.sleep(ir_delay)
             if self.loop_stop_event.is_set():
                 break
 
@@ -404,6 +407,14 @@ class StandConsole(cmd.Cmd):
                     cmd = self._get_ir_command()
                     self.serial_port.write(cmd)
                     frequency = self.config.getfloat('loop', 'current_frequency', fallback=0)
+                    # Log IR command
+                    import datetime
+                    log_file = self.config.get('loop', 'log_file', fallback='stand.log')
+                    try:
+                        with open(log_file, 'a') as f:
+                            f.write(f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}: {frequency:.1f}\n")
+                    except Exception:
+                        pass
                     with self.output_lock:
                         sys.stdout.write(f"\r  -> IR sent @ {frequency:.1f} Hz\n{self.prompt}")
                         sys.stdout.flush()
