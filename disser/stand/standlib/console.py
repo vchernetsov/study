@@ -197,6 +197,13 @@ class StandConsole(cmd.Cmd):
         """Do nothing on empty input."""
         pass
 
+    def completenames(self, text, *ignored):
+        """Override to include dynamically registered commands."""
+        dotext = 'do_' + text
+        # Include both class and instance attributes
+        names = [name for name in dir(self) if name.startswith(dotext)]
+        return [name[3:] for name in names]
+
     def do_help(self, arg: str) -> None:
         """Show help for commands. Usage: help [command]"""
         if arg:
@@ -259,6 +266,12 @@ CAMERA:
   fetch [dir]   Fetch photos from mounted camera filesystem and rename.
                 Copies from DCIM folder to ./photos/ by default, then
                 prompts to rename as <frequency>-<timestamp>.<extension>
+
+  missing       Show frequencies missing from fetched videos.
+                Compares files in output directory against expected range.
+
+  rerun         Loop through only the missing frequencies.
+                Plays sound and triggers IR for each missing frequency.
 
 OTHER:
   help [cmd]    Show this help or help for specific command.

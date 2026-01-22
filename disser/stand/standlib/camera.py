@@ -203,16 +203,34 @@ class CameraFetch:
 
         print(f"  [FETCH] Creating output directory: {output_dir}")
         os.makedirs(output_dir, exist_ok=True)
-        print(f"  [FETCH] Starting file transfer...")
+
+        # Filter out files that already exist
+        new_files = []
+        skipped = 0
+        for src in camera_files:
+            dst = Path(output_dir) / src.name
+            if dst.exists():
+                skipped += 1
+            else:
+                new_files.append(src)
+
+        if skipped:
+            print(f"  [FETCH] Skipping {skipped} files already in {output_dir}")
+
+        if not new_files:
+            print("  [FETCH] No new files to copy")
+            return []
+
+        print(f"  [FETCH] Starting file transfer ({len(new_files)} new files)...")
 
         copied = []
-        for i, src in enumerate(camera_files, 1):
+        for i, src in enumerate(new_files, 1):
             filename = src.name
             dst = Path(output_dir) / filename
             try:
                 size = src.stat().st_size
                 size_mb = size / (1024 * 1024)
-                print(f"  [FETCH] [{i}/{len(camera_files)}] Copying {filename} ({size_mb:.1f} MB)...")
+                print(f"  [FETCH] [{i}/{len(new_files)}] Copying {filename} ({size_mb:.1f} MB)...")
                 shutil.copy2(src, dst)
                 copied.append(dst)
             except Exception as e:

@@ -8,8 +8,9 @@ if TYPE_CHECKING:
 
 def register_commands(console: 'StandConsole') -> None:
     """Register all command modules with console."""
-    from . import state, loop, playback
+    from . import state, loop, playback, missing
 
     state.register(console)
     loop.register(console)
     playback.register(console)
+    missing.register(console)
