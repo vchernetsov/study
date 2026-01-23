@@ -60,7 +60,9 @@ try:
         start_frequency=config.get('start_frequency'),
         end_frequency=config.get('end_frequency'),
         step=config.get('step'),
-        sound_duration=config.get('sound_duration')
+        sound_duration=config.get('sound_duration'),
+        sleep_time=config.get('sleep_time'),
+        ir_delay=config.get('ir_delay')
     )
     loop = Loop(samples, ir, logger, config)
     print("\nStarting frequency iteration test...")
@@ -90,7 +92,7 @@ try:
         missed_steps = LoopStep.list([
             {"frequency": freq}
             for freq in missed
-        ], sound_duration=config.get('sound_duration'))
+        ], sound_duration=config.get('sound_duration'), sleep_time=config.get('sleep_time'), ir_delay=config.get('ir_delay'))
         loop = Loop(missed_steps, ir, logger, config)
         print("Starting retry loop...")
         try:

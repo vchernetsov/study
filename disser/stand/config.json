@@ -1,10 +1,10 @@
 {
-    "start_frequency": 105.0,
-    "end_frequency": 110,
+    "start_frequency": 0.0,
+    "end_frequency": 300.0,
     "step": 0.5,
-    "sound_duration": 20,
-    "sleep_time": 10,
-    "ir_delay": 10,
-    "fade_seconds": 2,
+    "sound_duration": 12,
+    "sleep_time": 5,
+    "ir_delay": 5,
+    "fade_seconds": 1,
     "max_retries": 10
 }

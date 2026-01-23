@@ -17,17 +17,35 @@ def sweep(start_frequency, end_frequency, duration, fade_seconds=2, sample_rate=
         sample_rate: Sample rate in Hz (default 44100)
         fade_seconds: Time in seconds to fade-in and fade-out (default=2).
     """
-    t = np.linspace(0, duration, int(sample_rate * duration), endpoint=False)
-    frequency = np.linspace(start_frequency, end_frequency, len(t))
-    phase = 2 * np.pi * np.cumsum(frequency) / sample_rate
+    # Generate samples (use exact integer sample count)
+    num_samples = int(sample_rate * duration)
+    t = np.arange(num_samples, dtype=np.float64) / sample_rate
+
+    # For pure tone (start == end), use simple phase calculation
+    if start_frequency == end_frequency:
+        phase = 2 * np.pi * start_frequency * t
+    else:
+        # For sweep, use linear chirp formula
+        # phase(t) = 2π * (f0*t + (f1-f0)*t²/(2*duration))
+        phase = 2 * np.pi * (start_frequency * t + (end_frequency - start_frequency) * t**2 / (2 * duration))
+
+    # Generate pure sine wave
     wave = np.sin(phase)
 
-    # Apply fade-in and fade-out to remove clicks
+    # Scale to 80% amplitude to prevent clipping
+    wave *= 0.8
+
+    # Apply smooth fade using raised cosine (Hann window) instead of linear
+    # This is smoother and introduces less distortion
     fade_samples = int(fade_seconds * sample_rate)
-    fade_in = np.linspace(0, 1, fade_samples)
-    fade_out = np.linspace(1, 0, fade_samples)
-    wave[:fade_samples] *= fade_in
-    wave[-fade_samples:] *= fade_out
+    if fade_samples > 0:
+        # Fade in: raised cosine (first half of Hann window)
+        fade_in = 0.5 * (1 - np.cos(np.pi * np.arange(fade_samples) / fade_samples))
+        wave[:fade_samples] *= fade_in
+
+        # Fade out: raised cosine (second half of Hann window)
+        fade_out = 0.5 * (1 + np.cos(np.pi * np.arange(fade_samples) / fade_samples))
+        wave[-fade_samples:] *= fade_out
 
     sd.play(wave, sample_rate)
     sd.wait()

@@ -15,7 +15,7 @@ from common.log import Logger
 
 
 class LoopStep:
-    def __init__(self, frequency, sound_duration=20, sleep_time=10, ir_delay=5):
+    def __init__(self, frequency, sound_duration, sleep_time, ir_delay):
         self.frequency = frequency
         self.sound_duration = sound_duration
         self.sleep_time = sleep_time
@@ -37,7 +37,7 @@ class LoopStep:
         self.sleep()
 
     def sweep_thread(self, frequency, sound_duration, config):
-        fade_seconds = config.get('fade_seconds', 2)
+        fade_seconds = config.get('fade_seconds')
         thread = threading.Thread(
             target=sweep,
             args=(frequency, frequency, sound_duration, fade_seconds)
@@ -71,19 +71,19 @@ class LoopStep:
         return f"[SWEEP]: Frequency - {self.frequency} Hz\t|ETA: {duration_str} | Finish at: {finish_str} | Steps remain: {steps_remain}"
 
     @staticmethod
-    def sequence(start_frequency, end_frequency, step, sound_duration):
+    def sequence(start_frequency, end_frequency, step, sound_duration, sleep_time, ir_delay):
         result = []
         frequency = start_frequency
         while frequency <= end_frequency:
-            result.append(LoopStep(frequency, sound_duration=sound_duration))
+            result.append(LoopStep(frequency, sound_duration=sound_duration, sleep_time=sleep_time, ir_delay=ir_delay))
             frequency += step
         return result
 
     @staticmethod
-    def list(iterable, sound_duration):
+    def list(iterable, sound_duration, sleep_time, ir_delay):
         result = []
         for x in iterable:
-            result.append(LoopStep(sound_duration=sound_duration, **x))
+            result.append(LoopStep(sound_duration=sound_duration, sleep_time=sleep_time, ir_delay=ir_delay, **x))
         return result
 
     def __str__(self):
