@@ -8,6 +8,7 @@ import os
 from common.ir import IRController
 from common.threads import Loop, LoopStep
 from common.exceptions import FinishLoop
+from common.log import Logger
 
 print("=" * 80)
 print("Vibration Stand")
@@ -29,9 +30,11 @@ print()
 ir = IRController()
 ir.connect()
 
+logger = Logger("ir_engage.log")
+
 try:
     samples = LoopStep.sequence(start_frequency=100, end_frequency=102, step=0.5, duration=10)
-    loop = Loop(samples, ir)
+    loop = Loop(samples, ir, logger)
     print("\nStarting frequency iteration test...")
     try:
         loop.engage()
