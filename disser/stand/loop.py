@@ -17,14 +17,25 @@ print("Vibration Stand")
 print("=" * 80)
 print()
 
-# Load configuration
-config = Config("config.json")
-print(f"Configuration loaded:")
+# Load configuration (create if absent)
+config_file = "config.json"
+if not os.path.exists(config_file):
+    print("Config file not found. Creating default config...")
+    config = Config(config_file)
+    config.save()
+    print(f"Created {config_file}")
+else:
+    config = Config(config_file)
+    print(f"Configuration loaded from {config_file}")
+
 print(f"  Frequency range: {config.get('start_frequency')} - {config.get('end_frequency')} Hz")
 print(f"  Step: {config.get('step')} Hz")
 print(f"  Sound duration: {config.get('sound_duration')} seconds")
 print(f"  Sleep time: {config.get('sleep_time')} seconds")
 print(f"  IR delay: {config.get('ir_delay')} seconds")
+start_freq = config.get('start_frequency')
+if start_freq > 0:
+    print(f"  Resuming from: {start_freq} Hz (progress is saved automatically)")
 print()
 
 #response = input("Starting sound test (y/N), 3 seconds: ").strip().lower()
@@ -42,7 +53,7 @@ print()
 ir = IRController()
 ir.connect()
 
-logger = Logger()
+logger = Logger(config.get('log_file', 'stand.log'))
 
 try:
     samples = LoopStep.sequence(
@@ -51,7 +62,7 @@ try:
         step=config.get('step'),
         sound_duration=config.get('sound_duration')
     )
-    loop = Loop(samples, ir, logger)
+    loop = Loop(samples, ir, logger, config)
     print("\nStarting frequency iteration test...")
     try:
         loop.engage()
@@ -80,7 +91,7 @@ try:
             {"frequency": freq}
             for freq in missed
         ], sound_duration=config.get('sound_duration'))
-        loop = Loop(missed_steps, ir, logger)
+        loop = Loop(missed_steps, ir, logger, config)
         print("Starting retry loop...")
         try:
             loop.engage()
