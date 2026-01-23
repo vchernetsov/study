@@ -4,7 +4,7 @@ from .console import StandConsole
 from .state_machine import CommandStateMachine
 from .config import ConfigManager
 
-__version__ = '1.0.0'
+__version__ = '1.0.1'
 __all__ = ['StandConsole', 'CommandStateMachine', 'ConfigManager', 'main']
 
 
