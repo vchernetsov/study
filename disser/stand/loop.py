@@ -4,15 +4,27 @@ Vibration Stand Testing Program
 Generates frequency sweeps for vibration testing
 """
 import os
+from colored import fg, attr
 
 from common.ir import IRController
 from common.threads import Loop, LoopStep
 from common.exceptions import FinishLoop
 from common.log import Logger
+from common.config import Config
 
 print("=" * 80)
 print("Vibration Stand")
 print("=" * 80)
+print()
+
+# Load configuration
+config = Config("config.json")
+print(f"Configuration loaded:")
+print(f"  Frequency range: {config.get('start_frequency')} - {config.get('end_frequency')} Hz")
+print(f"  Step: {config.get('step')} Hz")
+print(f"  Sound duration: {config.get('sound_duration')} seconds")
+print(f"  Sleep time: {config.get('sleep_time')} seconds")
+print(f"  IR delay: {config.get('ir_delay')} seconds")
 print()
 
 #response = input("Starting sound test (y/N), 3 seconds: ").strip().lower()
@@ -30,10 +42,15 @@ print()
 ir = IRController()
 ir.connect()
 
-logger = Logger("ir_engage.log")
+logger = Logger()
 
 try:
-    samples = LoopStep.sequence(start_frequency=100, end_frequency=102, step=0.5, duration=10)
+    samples = LoopStep.sequence(
+        start_frequency=config.get('start_frequency'),
+        end_frequency=config.get('end_frequency'),
+        step=config.get('step'),
+        sound_duration=config.get('sound_duration')
+    )
     loop = Loop(samples, ir, logger)
     print("\nStarting frequency iteration test...")
     try:
@@ -41,6 +58,36 @@ try:
     except FinishLoop as e:
         print(f"\n{e}")
     print("Frequency iteration ended.")
+
+    # Retry missed frequencies until all are completed
+    retry_count = 0
+    max_retries = config.get('max_retries')
+
+    while True:
+        missed = loop.get_missed_frequencies()
+        if not missed:
+            print("\nNo missed frequencies. All IR engagements successful!")
+            break
+
+        retry_count += 1
+        if retry_count > max_retries:
+            print(f"\nMax retries ({max_retries}) reached. {len(missed)} frequencies still failed: {fg('red')}{missed}{attr('reset')}")
+            break
+
+        print(f"\nRetry attempt {retry_count}: {len(missed)} missed frequencies: {fg('red')}{missed}{attr('reset')}")
+        # Create LoopSteps for missed frequencies
+        missed_steps = LoopStep.list([
+            {"frequency": freq}
+            for freq in missed
+        ], sound_duration=config.get('sound_duration'))
+        loop = Loop(missed_steps, ir, logger)
+        print("Starting retry loop...")
+        try:
+            loop.engage()
+        except FinishLoop as e:
+            print(f"\n{e}")
+            break
+        print("Retry loop ended.")
 except KeyboardInterrupt as e:
     print("\n\nInterrupted by user.")
 except Exception as e:
@@ -48,4 +95,3 @@ except Exception as e:
 finally:
     # Always force exit to avoid portaudio cleanup issues
     os._exit(0)
-
