@@ -1,0 +1,2 @@
+class FinishLoop(Exception):
+    pass
